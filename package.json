@@ -6,17 +6,35 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "lint": "eslint"
+    "lint": "eslint",
+    "db:push": "prisma db push",
+    "db:studio": "prisma studio",
+    "db:seed": "prisma db seed",
+    "db:migrate": "prisma migrate dev"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
+    "bcryptjs": "^3.0.3",
+    "cookie": "^2.0.1",
+    "dotenv": "^17.4.2",
+    "jsonwebtoken": "^9.0.3",
+    "multer": "^2.2.0",
     "next": "16.2.12",
+    "prisma": "^6.19.3",
     "react": "19.2.4",
     "react-dom": "19.2.4"
   },
   "devDependencies": {
     "@tailwindcss/postcss": "^4",
+    "@types/node": "26.1.2",
+    "@types/react": "19.2.18",
     "eslint": "^9",
     "eslint-config-next": "16.2.12",
+    "nodemon": "^3.1.14",
+    "prisma-erd": "^0.1.1",
     "tailwindcss": "^4"
+  },
+  "prisma": {
+    "seed": "node prisma/seed.js"
   }
 }

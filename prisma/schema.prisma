@@ -1,0 +1,266 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ===== ENTITAS UTAMA =====
+
+model User {
+  id        String   @id @default(uuid())
+  nama      String
+  email     String   @unique
+  password  String
+  noHp      String   @unique
+  role      Role     @default(USER)
+  sekolahId String?  @unique
+  sekolah   Sekolah? @relation(fields: [sekolahId], references: [id], onDelete: SetNull)
+
+  laporan      LaporanSampah[]
+  pengangkutan Pengangkutan[]
+
+  // MANY-TO-MANY:
+  // User sebagai petugas bisa mengerjakan banyak laporan
+  tugasLaporan LaporanPetugas[]
+
+  // ECOPOINT
+  ecopoint      Ecopoint?
+  transaksiPoin TransaksiPoin[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("users")
+}
+
+model Kota {
+  id       String    @id @default(uuid())
+  namaKota String    @unique
+  sekolah  Sekolah[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("kota")
+}
+
+model Sekolah {
+  id          String @id @default(uuid())
+  namaSekolah String @unique
+  alamat      String
+
+  kotaId String
+  kota   Kota   @relation(fields: [kotaId], references: [id], onDelete: Restrict)
+
+  user    User?
+  laporan LaporanSampah[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("sekolah")
+}
+
+model JenisSampah {
+  id        String @id @default(uuid())
+  namaJenis String @unique
+  poinPerKg Int    @default(1) // 🔥 BARU!
+
+  laporan LaporanSampah[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("jenis_sampah")
+}
+
+model LaporanSampah {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  sekolahId String
+  sekolah   Sekolah @relation(fields: [sekolahId], references: [id], onDelete: Restrict)
+
+  jenisSampahId String
+  jenisSampah   JenisSampah @relation(fields: [jenisSampahId], references: [id], onDelete: Restrict)
+
+  berat        Float
+  tanggalLapor DateTime      @default(now())
+  status       StatusLaporan @default(MENUNGGU)
+
+  fotoLaporan  FotoLaporan?
+  pengangkutan Pengangkutan?
+
+  // MANY-TO-MANY:
+  // Satu laporan bisa dikerjakan banyak petugas
+  petugasTugas LaporanPetugas[]
+
+  // ECOPOINT:
+  // Satu laporan bisa memiliki transaksi poin
+  transaksiPoin TransaksiPoin[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("laporan_sampah")
+}
+
+model FotoLaporan {
+  id       String @id @default(uuid())
+  imageUrl String
+
+  laporanId String        @unique
+  laporan   LaporanSampah @relation(fields: [laporanId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("foto_laporan")
+}
+
+model Pengangkutan {
+  id String @id @default(uuid())
+
+  laporanId String        @unique
+  laporan   LaporanSampah @relation(fields: [laporanId], references: [id], onDelete: Cascade)
+
+  petugasId String
+  petugas   User   @relation(fields: [petugasId], references: [id], onDelete: Restrict)
+
+  tanggalPengangkutan DateTime           @default(now())
+  status              StatusPengangkutan @default(BELUM_DIANGKUT)
+
+  fotoPengangkutan FotoPengangkutan?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("pengangkutan")
+}
+
+model FotoPengangkutan {
+  id       String @id @default(uuid())
+  imageUrl String
+
+  pengangkutanId String       @unique
+  pengangkutan   Pengangkutan @relation(fields: [pengangkutanId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("foto_pengangkutan")
+}
+
+// ===== TABEL PENGHUBUNG MANY-TO-MANY =====
+
+model LaporanPetugas {
+  id String @id @default(uuid())
+
+  laporanId String
+  petugasId String
+
+  laporan LaporanSampah @relation(fields: [laporanId], references: [id], onDelete: Cascade)
+  petugas User          @relation(fields: [petugasId], references: [id], onDelete: Restrict)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([laporanId, petugasId])
+  @@map("laporan_petugas")
+}
+
+// ===== ECOPOINT & TRANSAKSI =====
+
+model Ecopoint {
+  id String @id @default(uuid())
+
+  userId String @unique
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  totalPoin    Int @default(0)
+  poinTerpakai Int @default(0)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("ecopoint")
+}
+
+model TransaksiPoin {
+  id String @id @default(uuid())
+
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  jenis String
+  // "DAPAT" atau "TUKAR"
+
+  poin Int
+  // jumlah poin (+ atau -)
+
+  deskripsi String
+  // contoh: "Laporan sampah 10kg"
+  // contoh: "Tukar pulsa 10rb"
+
+  // RELASI KE LAPORAN
+  laporanId String?
+  laporan   LaporanSampah? @relation(fields: [laporanId], references: [id], onDelete: SetNull)
+
+  // RELASI KE BARANG MARKETPLACE
+  barangId String?
+  barang   Barang? @relation(fields: [barangId], references: [id], onDelete: SetNull)
+
+  alamat String? // 🔥 BARU! Alamat pengiriman
+
+  createdAt DateTime @default(now())
+
+  @@map("transaksi_poin")
+}
+
+// ===== MARKETPLACE: BARANG =====
+
+model Barang {
+  id String @id @default(uuid())
+
+  nama      String  @unique
+  deskripsi String?
+  hargaPoin Int
+  stok      Int     @default(0)
+  imageUrl  String?
+
+  // RELASI BALIK KE TRANSAKSI POIN
+  transaksiPoin TransaksiPoin[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("barang")
+}
+
+// ===== ENUM =====
+
+enum Role {
+  ADMIN
+  USER
+  PETUGAS
+}
+
+enum StatusLaporan {
+  MENUNGGU
+  DIPROSES
+  SELESAI
+}
+
+enum StatusPengangkutan {
+  BELUM_DIANGKUT
+  SEDANG_DIANGKUT
+  SUDAH_DIANGKUT
+}
