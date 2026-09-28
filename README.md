@@ -1,37 +1,124 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://github.com/vercel/next.js/tree/canary/packages/create-next-app).
+# ♻️ School Waste Management
 
-## Getting Started
+**School Waste Management** adalah aplikasi berbasis web yang dibuat untuk membantu pengelolaan sampah di lingkungan sekolah. Aplikasi ini menyediakan fitur pelaporan sampah, pengelolaan laporan oleh petugas, sistem Ecopoint, serta marketplace untuk penukaran poin.
 
-First, run the development server:
+## 🌐 Live Preview
 
-```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
-```
+[**🔗 Buka Website School Waste Management**](https://sampah-nv62.vercel.app/)
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+> **Live Website:** https://sampah-nv62.vercel.app/
 
-You can start editing the page by modifying `app/page.js`. The page auto-updates as you edit the file.
+---
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## 🛠️ Teknologi yang Digunakan
 
-## Learn More
+- **Next.js** — Framework untuk pengembangan aplikasi web
+- **JavaScript** — Bahasa pemrograman
+- **Prisma ORM** — Pengelolaan dan akses database
+- **PostgreSQL** — Database
+- **Vercel** — Deployment aplikasi
 
-To learn more about Next.js, take a look at the following resources:
+---
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## 👥 Role Pengguna
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+Aplikasi memiliki beberapa role pengguna dengan hak akses yang berbeda.
 
-## Deploy on Vercel
+### 🔵 Super Admin
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+Super Admin memiliki akses untuk mengelola data utama dalam sistem, seperti:
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
-"# SAMPAH" 
+- Mengelola data pengguna
+- Mengelola data sekolah
+- Mengelola data kota
+- Mengelola jenis sampah
+- Mengelola data barang marketplace
+- Mengelola Ecopoint
+- Melihat dan mengelola data laporan
+
+### 🟡 Petugas
+
+Petugas bertugas menangani laporan sampah yang masuk, seperti:
+
+- Melihat laporan sampah
+- Melihat detail laporan
+- Menangani proses pengangkutan sampah
+- Mengubah status laporan
+- Menyelesaikan laporan sampah
+
+### 🟢 User
+
+User dapat menggunakan fitur aplikasi untuk:
+
+- Membuat laporan sampah
+- Mengunggah foto laporan
+- Melihat status laporan
+- Melihat riwayat laporan
+- Melihat jumlah Ecopoint
+- Melihat marketplace
+- Menukarkan poin dengan barang yang tersedia
+
+---
+
+## ♻️ Fitur Utama
+
+### 1. Login dan Registrasi
+
+Pengguna dapat masuk ke dalam sistem menggunakan akun yang telah terdaftar sesuai dengan role masing-masing.
+
+### 2. Pelaporan Sampah
+
+User dapat membuat laporan sampah dengan memberikan informasi mengenai sampah yang ditemukan serta mengunggah foto sebagai bukti laporan.
+
+### 3. Pengelolaan Laporan
+
+Petugas dapat melihat laporan yang masuk dan menangani laporan tersebut hingga proses selesai.
+
+### 4. Ecopoint
+
+User dapat memperoleh poin dari aktivitas pengelolaan sampah yang dilakukan melalui sistem.
+
+### 5. Marketplace
+
+Poin yang dimiliki user dapat digunakan untuk melakukan penukaran barang yang tersedia pada marketplace.
+
+### 6. Pengelolaan Data
+
+Super Admin dapat melakukan pengelolaan berbagai data yang digunakan dalam sistem melalui dashboard admin.
+
+---
+
+## 🗄️ Database
+
+Aplikasi menggunakan:
+
+- **PostgreSQL** sebagai database
+- **Prisma ORM** sebagai penghubung dan pengelola database
+
+Database digunakan untuk menyimpan berbagai data aplikasi, seperti:
+
+- User
+- Sekolah
+- Kota
+- Jenis Sampah
+- Laporan Sampah
+- Foto Laporan
+- Petugas
+- Pengangkutan
+- Ecopoint
+- Barang Marketplace
+- Transaksi Poin
+
+---
+
+## 🚀 Deployment
+
+Aplikasi telah di-deploy menggunakan **Vercel**.
+
+### Live Website
+
+🔗 [**https://sampah-nv62.vercel.app/**](https://sampah-nv62.vercel.app/)
+
+### Repository GitHub
+
+🔗 [**GitHub Repository — SAMPAH**](https://github.com/liataliana/SAMPAH)
