@@ -2,8 +2,7 @@
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { put } from "@vercel/blob";
 
 export async function POST(request) {
   try {
@@ -96,21 +95,19 @@ export async function POST(request) {
       });
     }
 
-    // Simpan file
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 8);
-    const ext = path.extname(file.name);
-    const fileName = `angkut-${timestamp}-${randomString}${ext}`;
-    const uploadDir = path.join(process.cwd(), 'public/uploads/pengangkutan');
-    const filePath = path.join(uploadDir, fileName);
+// Simpan file ke Vercel Blob Private
+const blob = await put(
+  `pengangkutan/${Date.now()}-${file.name}`,
+  file,
+  {
+    access: 'public',
+    storeId: process.env.ygbru_STORE_ID,
+  }
+);
 
-    await mkdir(uploadDir, { recursive: true });
+const imageUrl = blob.url;
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
 
-    const imageUrl = `/uploads/pengangkutan/${fileName}`;
 
     // 🔥 SIMPAN KE FOTO PENGANGKUTAN (BUKAN FOTO LAPORAN!)
     const existingFoto = await prisma.fotoPengangkutan.findUnique({

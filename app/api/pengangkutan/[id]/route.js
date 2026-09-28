@@ -2,12 +2,12 @@
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
+import { put } from '@vercel/blob';
 
 export async function GET(request, { params }) {
   try {
     const user = await requireAuth(null);
+
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -35,7 +35,8 @@ export async function GET(request, { params }) {
               },
             },
             fotoLaporan: true,
-            // 🔥 TAMBAHIN: petugas yang ditugaskan
+
+            // Petugas yang ditugaskan
             petugasTugas: {
               include: {
                 petugas: {
@@ -49,6 +50,7 @@ export async function GET(request, { params }) {
             }
           },
         },
+
         petugas: {
           select: {
             id: true,
@@ -56,6 +58,7 @@ export async function GET(request, { params }) {
             email: true,
           },
         },
+
         fotoPengangkutan: true,
       },
     });
@@ -67,7 +70,7 @@ export async function GET(request, { params }) {
       );
     }
 
-    // 🔥 CEK AKSES PETUGAS (Many-to-Many)
+    // Cek akses petugas
     if (user.role === 'PETUGAS') {
       const isAssigned = await prisma.laporanPetugas.findFirst({
         where: {
@@ -85,10 +88,15 @@ export async function GET(request, { params }) {
     }
 
     return NextResponse.json(pengangkutan);
+
   } catch (error) {
     console.error('Get pengangkutan detail error:', error);
+
     return NextResponse.json(
-      { error: 'Terjadi kesalahan pada server: ' + error.message },
+      {
+        error:
+          'Terjadi kesalahan pada server: ' + error.message
+      },
       { status: 500 }
     );
   }
@@ -97,6 +105,7 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     const user = await requireAuth('PETUGAS');
+
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -105,10 +114,15 @@ export async function PUT(request, { params }) {
     }
 
     const { id } = await params;
+
     const body = await request.json();
     const { status } = body;
 
-    console.log('Update pengangkutan:', { id, status, petugasId: user.id });
+    console.log('Update pengangkutan:', {
+      id,
+      status,
+      petugasId: user.id
+    });
 
     if (!status) {
       return NextResponse.json(
@@ -117,7 +131,12 @@ export async function PUT(request, { params }) {
       );
     }
 
-    const validStatus = ['BELUM_DIANGKUT', 'SEDANG_DIANGKUT', 'SUDAH_DIANGKUT'];
+    const validStatus = [
+      'BELUM_DIANGKUT',
+      'SEDANG_DIANGKUT',
+      'SUDAH_DIANGKUT'
+    ];
+
     if (!validStatus.includes(status)) {
       return NextResponse.json(
         { error: 'Status tidak valid' },
@@ -136,7 +155,7 @@ export async function PUT(request, { params }) {
       );
     }
 
-    // 🔥 CEK AKSES PETUGAS (Many-to-Many)
+    // Cek akses petugas
     const isAssigned = await prisma.laporanPetugas.findFirst({
       where: {
         laporanId: pengangkutan.laporanId,
@@ -146,7 +165,10 @@ export async function PUT(request, { params }) {
 
     if (!isAssigned) {
       return NextResponse.json(
-        { error: 'Anda tidak memiliki akses untuk mengubah tugas ini' },
+        {
+          error:
+            'Anda tidak memiliki akses untuk mengubah tugas ini'
+        },
         { status: 403 }
       );
     }
@@ -163,13 +185,21 @@ export async function PUT(request, { params }) {
 
       if (status === 'SUDAH_DIANGKUT') {
         await tx.laporanSampah.update({
-          where: { id: pengangkutan.laporanId },
-          data: { status: 'SELESAI' },
+          where: {
+            id: pengangkutan.laporanId
+          },
+          data: {
+            status: 'SELESAI'
+          },
         });
       } else if (status === 'SEDANG_DIANGKUT') {
         await tx.laporanSampah.update({
-          where: { id: pengangkutan.laporanId },
-          data: { status: 'DIPROSES' },
+          where: {
+            id: pengangkutan.laporanId
+          },
+          data: {
+            status: 'DIPROSES'
+          },
         });
       }
 
@@ -180,10 +210,18 @@ export async function PUT(request, { params }) {
       message: 'Status pengangkutan berhasil diupdate',
       data: result,
     });
+
   } catch (error) {
-    console.error('Update pengangkutan status error:', error);
+    console.error(
+      'Update pengangkutan status error:',
+      error
+    );
+
     return NextResponse.json(
-      { error: 'Terjadi kesalahan pada server: ' + error.message },
+      {
+        error:
+          'Terjadi kesalahan pada server: ' + error.message
+      },
       { status: 500 }
     );
   }
@@ -193,6 +231,7 @@ export async function PUT(request, { params }) {
 export async function POST(request, { params }) {
   try {
     const user = await requireAuth('PETUGAS');
+
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -213,7 +252,7 @@ export async function POST(request, { params }) {
       );
     }
 
-    // 🔥 CEK AKSES PETUGAS (Many-to-Many)
+    // Cek akses petugas
     const isAssigned = await prisma.laporanPetugas.findFirst({
       where: {
         laporanId: pengangkutan.laporanId,
@@ -223,7 +262,10 @@ export async function POST(request, { params }) {
 
     if (!isAssigned) {
       return NextResponse.json(
-        { error: 'Anda tidak memiliki akses ke tugas ini' },
+        {
+          error:
+            'Anda tidak memiliki akses ke tugas ini'
+        },
         { status: 403 }
       );
     }
@@ -238,14 +280,25 @@ export async function POST(request, { params }) {
       );
     }
 
-    const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+    // Validasi tipe file
+    const validTypes = [
+      'image/jpeg',
+      'image/png',
+      'image/jpg',
+      'image/webp'
+    ];
+
     if (!validTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Format file tidak didukung. Gunakan JPG, PNG, atau WEBP' },
+        {
+          error:
+            'Format file tidak didukung. Gunakan JPG, PNG, atau WEBP'
+        },
         { status: 400 }
       );
     }
 
+    // Validasi ukuran file maksimal 5MB
     if (file.size > 5 * 1024 * 1024) {
       return NextResponse.json(
         { error: 'Ukuran file maksimal 5MB' },
@@ -253,37 +306,44 @@ export async function POST(request, { params }) {
       );
     }
 
-    const timestamp = Date.now();
-    const randomString = Math.random().toString(36).substring(2, 8);
-    const ext = path.extname(file.name);
-    const fileName = `angkut-${timestamp}-${randomString}${ext}`;
-    const uploadDir = path.join(process.cwd(), 'public/uploads/pengangkutan');
-    const filePath = path.join(uploadDir, fileName);
+    // Upload ke Vercel Blob Private
+    const blob = await put(
+      `pengangkutan/${Date.now()}-${file.name}`,
+      file,
+      {
+        access: 'public',
+        storeId: process.env.ygbru_STORE_ID,
+      }
+    );
 
-    await mkdir(uploadDir, { recursive: true });
+    const imageUrl = blob.url;
 
-    const bytes = await file.arrayBuffer();
-    const buffer = Buffer.from(bytes);
-    await writeFile(filePath, buffer);
+    // Simpan URL Blob ke database
+    const fotoPengangkutan =
+      await prisma.fotoPengangkutan.create({
+        data: {
+          imageUrl,
+          pengangkutanId: id,
+        },
+      });
 
-    const imageUrl = `/uploads/pengangkutan/${fileName}`;
-
-    const fotoPengangkutan = await prisma.fotoPengangkutan.create({
-      data: {
-        imageUrl,
-        pengangkutanId: id,
-      },
-    });
-
+    // Jika belum selesai, otomatis tandai sudah diangkut
     if (pengangkutan.status !== 'SUDAH_DIANGKUT') {
       await prisma.$transaction(async (tx) => {
         await tx.pengangkutan.update({
           where: { id },
-          data: { status: 'SUDAH_DIANGKUT' },
+          data: {
+            status: 'SUDAH_DIANGKUT'
+          },
         });
+
         await tx.laporanSampah.update({
-          where: { id: pengangkutan.laporanId },
-          data: { status: 'SELESAI' },
+          where: {
+            id: pengangkutan.laporanId
+          },
+          data: {
+            status: 'SELESAI'
+          },
         });
       });
     }
@@ -292,10 +352,18 @@ export async function POST(request, { params }) {
       message: 'Foto pengangkutan berhasil diupload',
       data: fotoPengangkutan,
     });
+
   } catch (error) {
-    console.error('Upload foto pengangkutan error:', error);
+    console.error(
+      'Upload foto pengangkutan error:',
+      error
+    );
+
     return NextResponse.json(
-      { error: 'Terjadi kesalahan pada server: ' + error.message },
+      {
+        error:
+          'Terjadi kesalahan pada server: ' + error.message
+      },
       { status: 500 }
     );
   }

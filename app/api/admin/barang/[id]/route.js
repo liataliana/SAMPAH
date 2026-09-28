@@ -2,14 +2,13 @@
 import { prisma } from '@/lib/prisma';
 import { requireAuth } from '@/lib/auth';
 import { NextResponse } from 'next/server';
-import { writeFile, mkdir } from 'fs/promises';
-import path from 'path';
-import { unlink } from 'fs/promises';
+import { put, del } from '@vercel/blob';
 
 // 🔥 GET BARANG BY ID
 export async function GET(request, { params }) {
   try {
     const user = await requireAuth('ADMIN');
+
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -18,6 +17,7 @@ export async function GET(request, { params }) {
     }
 
     const { id } = await params;
+
     const barang = await prisma.barang.findUnique({
       where: { id }
     });
@@ -32,6 +32,7 @@ export async function GET(request, { params }) {
     return NextResponse.json(barang);
   } catch (error) {
     console.error('Get barang detail error:', error);
+
     return NextResponse.json(
       { error: 'Terjadi kesalahan' },
       { status: 500 }
@@ -43,6 +44,7 @@ export async function GET(request, { params }) {
 export async function PUT(request, { params }) {
   try {
     const user = await requireAuth('ADMIN');
+
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -51,7 +53,9 @@ export async function PUT(request, { params }) {
     }
 
     const { id } = await params;
+
     const formData = await request.formData();
+
     const nama = formData.get('nama');
     const deskripsi = formData.get('deskripsi');
     const hargaPoin = parseInt(formData.get('hargaPoin'));
@@ -71,9 +75,16 @@ export async function PUT(request, { params }) {
 
     let imageUrl = existing.imageUrl;
 
-    // Upload gambar baru kalo ada
+    // Upload gambar baru kalau ada
     if (file && file.size > 0) {
-      const validTypes = ['image/jpeg', 'image/png', 'image/jpg', 'image/webp'];
+      // Validasi tipe file
+      const validTypes = [
+        'image/jpeg',
+        'image/png',
+        'image/jpg',
+        'image/webp'
+      ];
+
       if (!validTypes.includes(file.type)) {
         return NextResponse.json(
           { error: 'Format file tidak didukung' },
@@ -81,6 +92,7 @@ export async function PUT(request, { params }) {
         );
       }
 
+      // Validasi ukuran file maksimal 2MB
       if (file.size > 2 * 1024 * 1024) {
         return NextResponse.json(
           { error: 'Ukuran file maksimal 2MB' },
@@ -88,36 +100,46 @@ export async function PUT(request, { params }) {
         );
       }
 
-      // Hapus gambar lama
+      // Hapus gambar lama dari Vercel Blob
       if (existing.imageUrl) {
-        const oldPath = path.join(process.cwd(), 'public', existing.imageUrl);
         try {
-          await unlink(oldPath);
-        } catch (e) {}
+          await del(existing.imageUrl);
+        } catch (e) {
+          console.error(
+            'Gagal menghapus gambar lama dari Blob:',
+            e
+          );
+        }
       }
 
-      const timestamp = Date.now();
-      const randomString = Math.random().toString(36).substring(2, 8);
-      const ext = path.extname(file.name);
-      const fileName = `barang-${timestamp}-${randomString}${ext}`;
-      const uploadDir = path.join(process.cwd(), 'public/uploads/barang');
-      const filePath = path.join(uploadDir, fileName);
+      // Upload gambar baru ke Vercel Blob Private
+      const blob = await put(
+        `barang/${Date.now()}-${file.name}`,
+        file,
+        {
+          access: 'public',
+        storeId: process.env.ygbru_STORE_ID,
+        }
+      );
 
-      await mkdir(uploadDir, { recursive: true });
-      const bytes = await file.arrayBuffer();
-      const buffer = Buffer.from(bytes);
-      await writeFile(filePath, buffer);
-
-      imageUrl = `/uploads/barang/${fileName}`;
+      imageUrl = blob.url;
     }
 
+    // Update data barang
     const barang = await prisma.barang.update({
       where: { id },
       data: {
         nama: nama || existing.nama,
-        deskripsi: deskripsi !== null ? deskripsi : existing.deskripsi,
-        hargaPoin: hargaPoin || existing.hargaPoin,
-        stok: stok !== null ? stok : existing.stok,
+        deskripsi:
+          deskripsi !== null
+            ? deskripsi
+            : existing.deskripsi,
+        hargaPoin:
+          hargaPoin || existing.hargaPoin,
+        stok:
+          stok !== null
+            ? stok
+            : existing.stok,
         imageUrl
       }
     });
@@ -126,10 +148,12 @@ export async function PUT(request, { params }) {
       message: 'Barang berhasil diupdate!',
       data: barang
     });
+
   } catch (error) {
     console.error('Update barang error:', error);
+
     return NextResponse.json(
-      { error: 'Terjadi kesalahan' },
+      { error: 'Terjadi kesalahan: ' + error.message },
       { status: 500 }
     );
   }
@@ -139,6 +163,7 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     const user = await requireAuth('ADMIN');
+
     if (!user) {
       return NextResponse.json(
         { error: 'Unauthorized' },
@@ -159,14 +184,19 @@ export async function DELETE(request, { params }) {
       );
     }
 
-    // Hapus gambar
+    // Hapus gambar dari Vercel Blob
     if (existing.imageUrl) {
-      const oldPath = path.join(process.cwd(), 'public', existing.imageUrl);
       try {
-        await unlink(oldPath);
-      } catch (e) {}
+        await del(existing.imageUrl);
+      } catch (e) {
+        console.error(
+          'Gagal menghapus gambar dari Blob:',
+          e
+        );
+      }
     }
 
+    // Hapus data barang dari database
     await prisma.barang.delete({
       where: { id }
     });
@@ -174,10 +204,12 @@ export async function DELETE(request, { params }) {
     return NextResponse.json({
       message: 'Barang berhasil dihapus!'
     });
+
   } catch (error) {
     console.error('Delete barang error:', error);
+
     return NextResponse.json(
-      { error: 'Terjadi kesalahan' },
+      { error: 'Terjadi kesalahan: ' + error.message },
       { status: 500 }
     );
   }

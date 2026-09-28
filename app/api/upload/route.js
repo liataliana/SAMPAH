@@ -60,7 +60,7 @@ export async function POST(request) {
       file,
       {
         access: 'public',
-        addRandomSuffix: true,
+        storeId: process.env.ygbru_STORE_ID,
       }
     );
 
