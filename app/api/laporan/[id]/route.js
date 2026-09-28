@@ -160,7 +160,8 @@ export async function PUT(request, { params }) {
     }
 
     // 🔥 EKSEKUSI UPDATE
-    const laporan = await prisma.$transaction(async (tx) => {
+    const laporan = await prisma.$transaction(
+      async (tx) => {
       // Update status laporan
       const updated = await tx.laporanSampah.update({
         where: { id },
@@ -203,6 +204,7 @@ export async function PUT(request, { params }) {
           },
         },
       });
+      
 
       // 🔥🔥🔥 TAMBAH ECOPOINT KALO LAPORAN SELESAI! 🔥🔥🔥
       if (status === 'SELESAI') {
@@ -276,7 +278,11 @@ export async function PUT(request, { params }) {
       }
 
       return updated;
-    });
+      },
+  {
+    timeout: 15000,
+  }
+);
 
     return NextResponse.json({
       message: 'Status laporan berhasil diupdate',
