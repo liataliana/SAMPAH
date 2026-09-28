@@ -13,14 +13,6 @@ export async function POST(request) {
       );
     }
 
-    // Hanya USER dan PETUGAS yang boleh upload
-    if (user.role !== 'USER' && user.role !== 'PETUGAS') {
-      return NextResponse.json(
-        { error: 'Hanya user atau petugas yang dapat upload file' },
-        { status: 403 }
-      );
-    }
-
     const formData = await request.formData();
     const file = formData.get('file');
 
@@ -41,7 +33,9 @@ export async function POST(request) {
 
     if (!validTypes.includes(file.type)) {
       return NextResponse.json(
-        { error: 'Format file tidak didukung. Gunakan JPG, PNG, atau WEBP' },
+        {
+          error: 'Format file tidak didukung. Gunakan JPG, PNG, atau WEBP'
+        },
         { status: 400 }
       );
     }
@@ -56,7 +50,7 @@ export async function POST(request) {
 
     // Upload ke Vercel Blob
     const blob = await put(
-      `laporan/${Date.now()}-${file.name}`,
+      `uploads/${Date.now()}-${file.name}`,
       file,
       {
         access: 'public',
