@@ -161,124 +161,156 @@ export async function PUT(request, { params }) {
 
     // 🔥 EKSEKUSI UPDATE
     const laporan = await prisma.$transaction(
-      async (tx) => {
-      // Update status laporan
-      const updated = await tx.laporanSampah.update({
-        where: { id },
-        data: { status },
-        include: {
-          user: {
-            select: {
-              id: true,
-              nama: true,
-            },
+  async (tx) => {
+    // Update status laporan
+    const updated = await tx.laporanSampah.update({
+      where: { id },
+      data: { status },
+      include: {
+        user: {
+          select: {
+            id: true,
+            nama: true,
           },
-          sekolah: {
-            include: {
-              kota: true,
-            },
+        },
+        sekolah: {
+          include: {
+            kota: true,
           },
-          jenisSampah: true,
-          fotoLaporan: true,
-          petugasTugas: {
-            include: {
-              petugas: {
-                select: {
-                  id: true,
-                  nama: true,
-                  email: true,
-                }
-              }
-            }
-          },
-          pengangkutan: {
-            include: {
-              petugas: {
-                select: {
-                  id: true,
-                  nama: true,
-                },
+        },
+        jenisSampah: true,
+        fotoLaporan: true,
+        petugasTugas: {
+          include: {
+            petugas: {
+              select: {
+                id: true,
+                nama: true,
+                email: true,
               },
-              fotoPengangkutan: true,
             },
           },
         },
+        pengangkutan: {
+          include: {
+            petugas: {
+              select: {
+                id: true,
+                nama: true,
+              },
+            },
+            fotoPengangkutan: true,
+          },
+        },
+      },
+    });
+
+    // ==========================================
+    // TAMBAH ECOPOINT SAAT LAPORAN SELESAI
+    // ==========================================
+    if (status === 'SELESAI') {
+      console.log('✅ Laporan SELESAI! Memproses EcoPoint...');
+
+      const laporanData = await tx.laporanSampah.findUnique({
+        where: { id },
+        select: {
+          userId: true,
+          berat: true,
+          jenisSampahId: true,
+        },
       });
-      
 
-      // 🔥🔥🔥 TAMBAH ECOPOINT KALO LAPORAN SELESAI! 🔥🔥🔥
-      if (status === 'SELESAI') {
-        console.log('✅ Laporan SELESAI! Tambah poin...');
+      if (!laporanData) {
+        throw new Error('Data laporan tidak ditemukan');
+      }
 
-        // Ambil data laporan
-        const laporanData = await tx.laporanSampah.findUnique({
-          where: { id },
-          select: { 
-            userId: true, 
-            berat: true,
-            jenisSampahId: true
+      console.log('📊 Data laporan:', laporanData);
+
+      // Cegah laporan yang sama mendapat poin 2x
+      const transaksiSebelumnya = await tx.transaksiPoin.findFirst({
+        where: {
+          laporanId: id,
+          jenis: 'DAPAT',
+        },
+      });
+
+      if (transaksiSebelumnya) {
+        console.log('⚠️ Laporan ini sudah pernah mendapatkan poin.');
+      } else {
+        // Ambil jenis sampah
+        const jenisSampah = await tx.jenisSampah.findUnique({
+          where: {
+            id: laporanData.jenisSampahId,
           },
         });
 
-        console.log('📊 Data laporan:', laporanData);
+        const poinPerKg = Number(jenisSampah?.poinPerKg || 1);
+        const berat = Number(laporanData.berat || 0);
+        const poinDapat = Math.floor(berat * poinPerKg);
 
-        if (laporanData) {
-          // Ambil poinPerKg dari jenis sampah
-          const jenisSampah = await tx.jenisSampah.findUnique({
-            where: { id: laporanData.jenisSampahId }
+        console.log(
+          `📊 Perhitungan poin: ${berat}kg × ${poinPerKg} = ${poinDapat}`
+        );
+
+        if (poinDapat > 0) {
+          // Cari EcoPoint user
+          let ecopoint = await tx.ecopoint.findUnique({
+            where: {
+              userId: laporanData.userId,
+            },
           });
 
-          const poinPerKg = jenisSampah?.poinPerKg || 1;
-          const berat = laporanData.berat || 0;
-          const poinDapat = Math.floor(berat * poinPerKg);
+          // Kalau belum ada, buat
+          if (!ecopoint) {
+            console.log('📊 Ecopoint belum ada, membuat baru...');
 
-          console.log(`📊 Poin: ${poinDapat} (${berat}kg x ${poinPerKg} poin/kg)`);
-
-          if (poinDapat > 0) {
-            // Cek ecopoint user
-            let ecopoint = await tx.ecopoint.findUnique({
-              where: { userId: laporanData.userId },
-            });
-
-            if (!ecopoint) {
-              console.log('📊 Ecopoint belum ada, bikin baru...');
-              await tx.ecopoint.create({
-                data: {
-                  userId: laporanData.userId,
-                  totalPoin: 0,
-                  poinTerpakai: 0,
-                },
-              });
-            }
-
-            // Update total poin
-            await tx.ecopoint.update({
-              where: { userId: laporanData.userId },
-              data: {
-                totalPoin: { increment: poinDapat },
-              },
-            });
-
-            // Tambah transaksi
-            await tx.transaksiPoin.create({
+            ecopoint = await tx.ecopoint.create({
               data: {
                 userId: laporanData.userId,
-                jenis: 'DAPAT',
-                poin: poinDapat,
-                deskripsi: `Laporan ${jenisSampah?.namaJenis || 'sampah'} ${berat}kg (${poinPerKg} poin/kg)`,
-                laporanId: id,
+                totalPoin: 0,
+                poinTerpakai: 0,
               },
             });
-
-            console.log(`✅✅✅ USER ${laporanData.userId} DAPAT ${poinDapat} POIN! ✅✅✅`);
-          } else {
-            console.log('⚠️ Poin 0, skip...');
           }
+
+          // Tambahkan poin
+          await tx.ecopoint.update({
+            where: {
+              userId: laporanData.userId,
+            },
+            data: {
+              totalPoin: {
+                increment: poinDapat,
+              },
+            },
+          });
+
+          // Catat transaksi poin
+          await tx.transaksiPoin.create({
+            data: {
+              userId: laporanData.userId,
+              jenis: 'DAPAT',
+              poin: poinDapat,
+              deskripsi: `Laporan ${
+                jenisSampah?.namaJenis || 'sampah'
+              } ${berat}kg (${poinPerKg} poin/kg)`,
+              laporanId: id,
+            },
+          });
+
+          console.log(
+            `✅ USER ${laporanData.userId} MENDAPAT ${poinDapat} POIN!`
+          );
+        } else {
+          console.log(
+            `⚠️ Poin tidak ditambahkan karena hasil perhitungan = ${poinDapat}`
+          );
         }
       }
+    }
 
-      return updated;
-      },
+    return updated;
+  },
   {
     timeout: 15000,
   }
