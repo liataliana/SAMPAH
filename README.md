@@ -4,7 +4,7 @@
 
 ## 🌐 Live Preview
 
-[**🔗 Buka Website School Waste Management**](https://sampah-nv62.vercel.app/login)
+[**🔗 Buka Website School Waste Management**](https://sampah-nv62-git-main-nata-7b5f.vercel.app/)
 
 > **Live Website:** https://sampah-nv62.vercel.app/
 
@@ -117,7 +117,7 @@ Aplikasi telah di-deploy menggunakan **Vercel**.
 
 ### Live Website
 
-🔗 [**https://sampah-nv62.vercel.app/**](https://sampah-nv62.vercel.app/login)
+🔗 [**https://sampah-nv62.vercel.app/**](https://sampah-nv62-git-main-nata-7b5f.vercel.app/)
 
 ### Repository GitHub
 
