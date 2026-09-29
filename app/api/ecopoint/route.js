@@ -14,48 +14,41 @@ export async function GET(request) {
       );
     }
 
-    console.log('🔍 User ID:', user.id); // DEBUG
+    console.log('🔍 Get ecopoint untuk user:', user.id);
 
-    // 🔥 PAKE QUERY LANGSUNG KE DATABASE
-    const ecopoint = await prisma.$queryRaw`
-      SELECT * FROM ecopoint WHERE "userId" = ${user.id}
-    `;
-
-    console.log('🔍 Ecopoint:', ecopoint); // DEBUG
+    // 🔥 PAKE PRISMA CLIENT BIASA (BUKAN RAW QUERY!)
+    let ecopoint = await prisma.ecopoint.findUnique({
+      where: { userId: user.id }
+    });
 
     // Kalo belum ada, bikin baru
-    let ecoData;
-    if (!ecopoint || ecopoint.length === 0) {
-      await prisma.$executeRaw`
-        INSERT INTO ecopoint ("id", "userId", "totalPoin", "poinTerpakai", "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), ${user.id}, 0, 0, NOW(), NOW())
-      `;
-
-      // Ambil lagi
-      const newEco = await prisma.$queryRaw`
-        SELECT * FROM ecopoint WHERE "userId" = ${user.id}
-      `;
-      ecoData = newEco[0];
-    } else {
-      ecoData = ecopoint[0];
+    if (!ecopoint) {
+      console.log('📌 Ecopoint belum ada, bikin baru...');
+      ecopoint = await prisma.ecopoint.create({
+        data: {
+          userId: user.id,
+          totalPoin: 0,
+          poinTerpakai: 0
+        }
+      });
     }
 
-    // 🔥 Ambil transaksi
-    const transaksi = await prisma.$queryRaw`
-      SELECT * FROM transaksi_poin 
-      WHERE "userId" = ${user.id}
-      ORDER BY "createdAt" DESC
-      LIMIT 10
-    `;
+    // Ambil transaksi terpisah
+    const transaksi = await prisma.transaksiPoin.findMany({
+      where: { userId: user.id },
+      orderBy: { createdAt: 'desc' },
+      take: 10
+    });
 
-    console.log('🔍 Transaksi:', transaksi); // DEBUG
+    console.log('✅ Ecopoint:', ecopoint.totalPoin);
 
     return NextResponse.json({
-      ...ecoData,
+      ...ecopoint,
       transaksi: transaksi || []
     });
+
   } catch (error) {
-    console.error('Get ecopoint error:', error);
+    console.error('❌ Get ecopoint error:', error);
     return NextResponse.json(
       { error: 'Terjadi kesalahan: ' + error.message },
       { status: 500 }
@@ -83,55 +76,60 @@ export async function POST(request) {
       );
     }
 
-    // Ambil poinPerKg dari jenis sampah
+    // Ambil poinPerKg
     let poinPerKg = 1;
     if (jenisSampahId) {
-      const jenisSampah = await prisma.$queryRaw`
-        SELECT * FROM jenis_sampah WHERE id = ${jenisSampahId}
-      `;
-      if (jenisSampah && jenisSampah.length > 0) {
-        poinPerKg = jenisSampah[0].poinPerKg || 1;
-      }
+      const jenisSampah = await prisma.jenisSampah.findUnique({
+        where: { id: jenisSampahId }
+      });
+      poinPerKg = jenisSampah?.poinPerKg || 1;
     }
 
     const poinDapat = Math.floor(berat * poinPerKg);
 
-    console.log('🔍 Tambah poin:', { userId: user.id, poinDapat, berat }); // DEBUG
+    console.log('🔍 Tambah poin:', { userId: user.id, poinDapat, berat });
 
-    // Cek ecopoint ada gak
-    const cekEco = await prisma.$queryRaw`
-      SELECT * FROM ecopoint WHERE "userId" = ${user.id}
-    `;
+    // 🔥 PAKE PRISMA CLIENT BIASA
+    let ecopoint = await prisma.ecopoint.findUnique({
+      where: { userId: user.id }
+    });
 
-    // Kalo belum ada, bikin
-    if (!cekEco || cekEco.length === 0) {
-      await prisma.$executeRaw`
-        INSERT INTO ecopoint ("id", "userId", "totalPoin", "poinTerpakai", "createdAt", "updatedAt")
-        VALUES (gen_random_uuid(), ${user.id}, 0, 0, NOW(), NOW())
-      `;
+    if (!ecopoint) {
+      ecopoint = await prisma.ecopoint.create({
+        data: {
+          userId: user.id,
+          totalPoin: 0,
+          poinTerpakai: 0
+        }
+      });
     }
 
-    // Update total poin
-    await prisma.$executeRaw`
-      UPDATE ecopoint 
-      SET "totalPoin" = "totalPoin" + ${poinDapat}, "updatedAt" = NOW()
-      WHERE "userId" = ${user.id}
-    `;
+    // Update poin
+    const updated = await prisma.ecopoint.update({
+      where: { userId: user.id },
+      data: { totalPoin: { increment: poinDapat } }
+    });
 
-    // Tambah transaksi
-    await prisma.$executeRaw`
-      INSERT INTO transaksi_poin ("id", "userId", "jenis", "poin", "deskripsi", "laporanId", "createdAt")
-      VALUES (gen_random_uuid(), ${user.id}, 'DAPAT', ${poinDapat}, ${`Laporan sampah ${berat}kg (${poinPerKg} poin/kg)`}, ${laporanId}, NOW())
-    `;
+    // Catat transaksi
+    await prisma.transaksiPoin.create({
+      data: {
+        userId: user.id,
+        jenis: 'DAPAT',
+        poin: poinDapat,
+        deskripsi: `Laporan sampah ${berat}kg (${poinPerKg} poin/kg)`,
+        laporanId: laporanId
+      }
+    });
 
-    console.log('✅ Poin berhasil ditambahkan!');
+    console.log('✅ Poin berhasil ditambahkan:', updated.totalPoin);
 
     return NextResponse.json({
       message: `Berhasil mendapat ${poinDapat} poin!`,
-      data: { poinDapat }
+      data: { poinDapat, totalPoin: updated.totalPoin }
     });
+
   } catch (error) {
-    console.error('Tambah poin error:', error);
+    console.error('❌ Tambah poin error:', error);
     return NextResponse.json(
       { error: 'Terjadi kesalahan: ' + error.message },
       { status: 500 }
